@@ -1,4 +1,4 @@
-module github.com/ik8848/aws-serverless-go
+module github.com/ishakatwal/aws-serverless-go
 
 go 1.20
 
