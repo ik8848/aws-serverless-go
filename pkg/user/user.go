@@ -15,6 +15,7 @@ import (
 var (
 	ErrorInvalidUserData         = "invalid user data"
 	ErrorFailedToFetchRecord     = "failed to fetch record"
+	ErrorCouldNotDeleteItem      = "could not delete item"
 	ErrorFailedToUnmarshalRecord = "failed to unmarshal record"
 	ErrorInvalidEmail            = "invalid email"
 	ErrorCouldNotMarshalItem     = "could not marshal item"
@@ -95,10 +96,44 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, dbClient dy
 	return &u, nil
 }
 
-func UpdateUser(req events.APIGatewayProxyRequest, tableName string, dbClient dynamodbiface.DynamoDBAPI) (*events.APIGatewayProxyResponse, error) {
+func UpdateUser(req events.APIGatewayProxyRequest, tableName string, dbClient dynamodbiface.DynamoDBAPI) (*User, error) {
+	var u User
+	if err := json.Unmarshal([]byte(req.Body), &u); err != nil {
+		return nil, errors.New(ErrorInvalidEmail)
+	}
+	user, _ := GetUser(u.Email, tableName, dbClient)
+	if user == nil && len(user.Email) == 0 {
+		return nil, errors.New(ErrorUserDoesNotExist)
+	}
 
+	jsonUser, err := dynamodbattribute.MarshalMap(u)
+	if err != nil {
+		return nil, errors.New(ErrorCouldNotMarshalItem)
+	}
+	input := &dynamodb.PutItemInput{
+		Item:      jsonUser,
+		TableName: aws.String(tableName),
+	}
+	_, err = dbClient.PutItem(input)
+	if err != nil {
+		return nil, errors.New(ErrorCouldNotPutItemInDB)
+	}
+	return &u, nil
 }
 
-func DeleteUser(req events.APIGatewayProxyRequest, tableName string, dbClient dynamodbiface.DynamoDBAPI) (*events.APIGatewayProxyResponse, error) {
-
+func DeleteUser(req events.APIGatewayProxyRequest, tableName string, dbClient dynamodbiface.DynamoDBAPI) error {
+	email := req.QueryStringParameters["email"]
+	input := &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"email": {
+				S: aws.String(email),
+			},
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dbClient.DeleteItem(input)
+	if err != nil {
+		return errors.New(ErrorCouldNotDeleteItem)
+	}
+	return nil
 }

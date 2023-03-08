@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	dynaClient dynamodbiface.DynamoDBAPI
+	dbClient dynamodbiface.DynamoDBAPI
 )
 
 func main() {
@@ -25,7 +25,8 @@ func main() {
 	if err != nil {
 		return
 	}
-	dbClient := dynamodb.New(awsSession)
+	dbClient = dynamodb.New(awsSession)
+
 	lambda.Start(handler)
 }
 
